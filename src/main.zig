@@ -1,5 +1,7 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
+const ast = @import("ast.zig");
+const parser = @import("parser.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -35,9 +37,18 @@ pub fn main(init: std.process.Init) !void {
         if (trimmed.len == 0) continue;
 
         var lex = lexer.Lexer.init(trimmed);
+        var parse = parser.Parser.init(&lex, arena);
+        const tree = parse.parse() catch |err| {
+            std.log.err("Parse Error: {}", .{err});
+            continue;
+        };
 
-        try stdout.print("You typed: {s}\n", .{trimmed});
-        try stdout.print("\n", .{});
+        try stdout.print("\n<><><><><> AST SUCCESS <><><><><>\n\n", .{});
+
+        // 4. Safely traverse and print the tree!
+        try printTree(stdout, tree, trimmed, 0);
+
+        try stdout.print("\n---------------------------------\n\n", .{});
         try stdout.flush();
     }
 }
@@ -69,4 +80,33 @@ fn print_prompt(io: std.Io, stdout: *std.Io.Writer, alloc: std.mem.Allocator, en
     }
 
     try stdout.print("{s} ==<>\n", .{display_path});
+}
+
+fn printTree(stdout: anytype, node: *const ast.AstNode, src: []const u8, depth: usize) !void {
+    var i: usize = 0;
+    while (i < depth) : (i += 1) try stdout.print("  ", .{});
+
+    switch (node.*) {
+        .command => |*c| {
+            const prog = src[c.program.loc.start..c.program.loc.end];
+            try stdout.print("Command: '{s}'\n", .{prog});
+
+            for (c.args) |arg| {
+                var j: usize = 0;
+                while (j < depth + 1) : (j += 1) try stdout.print("  ", .{});
+                const arg_text = src[arg.loc.start..arg.loc.end];
+                try stdout.print("Arg: '{s}'\n", .{arg_text});
+            }
+        },
+        .pipeline => |*p| {
+            try stdout.print("Pipeline:\n", .{});
+            try printTree(stdout, p.left, src, depth + 1);
+
+            i = 0;
+            while (i < depth) : (i += 1) try stdout.print("  ", .{});
+            try stdout.print("  | (pipes to)\n", .{});
+
+            try printTree(stdout, p.right, src, depth + 1);
+        },
+    }
 }

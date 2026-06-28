@@ -28,7 +28,7 @@ pub const Lexer = struct {
 
     pub fn next(self: *Lexer) Token {
         self.skip_whitespace();
-        if (self.pos > self.src.len) {
+        if (self.pos >= self.src.len) {
             return .{ .kind = .EOF, .loc = .{ .start = self.pos, .end = self.pos } };
         }
 
