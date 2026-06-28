@@ -122,6 +122,15 @@ pub const Lexer = struct {
                 else => self.pos += 1,
             }
         }
+
+        const text = self.src[start..self.pos];
+        if (std.mem.eql(u8, text, "and")) {
+            return .{ .kind = .AND, .loc = .{ .start = start, .end = self.pos } };
+        }
+        if (std.mem.eql(u8, text, "or")) {
+            return .{ .kind = .OR, .loc = .{ .start = start, .end = self.pos } };
+        }
+
         return .{ .kind = .WORD, .loc = .{ .start = start, .end = self.pos } };
     }
 };

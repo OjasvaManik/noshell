@@ -1,4 +1,5 @@
 const std = @import("std");
+const lexer = @import("lexer.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -32,6 +33,9 @@ pub fn main(init: std.process.Init) !void {
         const line = mayble_line orelse break;
         const trimmed = std.mem.trim(u8, line, " \t\r");
         if (trimmed.len == 0) continue;
+
+        var lex = lexer.Lexer.init(trimmed);
+
         try stdout.print("You typed: {s}\n", .{trimmed});
         try stdout.print("\n", .{});
         try stdout.flush();
