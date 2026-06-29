@@ -3,6 +3,7 @@ const ast = @import("ast.zig");
 
 const cd = @import("builtin/cd.zig");
 const climb = @import("builtin/climb.zig");
+const ls = @import("builtin/ls.zig");
 
 pub fn execute(node: *const ast.AstNode, src: []const u8, alloc: std.mem.Allocator, stdout: *std.Io.Writer, io: std.Io, env: *std.process.Environ.Map) !void {
     switch (node.*) {
@@ -29,6 +30,10 @@ fn exec_command(cmd: *const ast.Command, src: []const u8, alloc: std.mem.Allocat
     }
     if (std.mem.eql(u8, prog_name, "climb")) {
         try climb.execute(argv[1..], stdout, io);
+        return;
+    }
+    if (std.mem.eql(u8, prog_name, "ls")) {
+        try ls.execute(argv[1..], alloc, stdout, io);
         return;
     }
     if (std.mem.eql(u8, prog_name, "exit")) {
