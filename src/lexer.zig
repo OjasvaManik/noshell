@@ -99,8 +99,9 @@ pub const Lexer = struct {
         while (self.pos < self.src.len and self.src[self.pos] != '\'') {
             self.pos += 1;
         }
+        const end = self.pos;
         if (self.pos < self.src.len) self.pos += 1;
-        return .{ .kind = .WORD, .loc = .{ .start = start, .end = self.pos } };
+        return .{ .kind = .WORD, .loc = .{ .start = start, .end = end } };
     }
 
     fn read_double_quoted(self: *Lexer) Token {
@@ -109,8 +110,9 @@ pub const Lexer = struct {
         while (self.pos < self.src.len and self.src[self.pos] != '"') {
             self.pos += 1;
         }
+        const end = self.pos;
         if (self.pos < self.src.len) self.pos += 1;
-        return .{ .kind = .WORD, .loc = .{ .start = start, .end = self.pos } };
+        return .{ .kind = .WORD, .loc = .{ .start = start, .end = end } };
     }
 
     fn read_word(self: *Lexer) Token {

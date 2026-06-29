@@ -2,6 +2,7 @@ const std = @import("std");
 const lexer = @import("lexer.zig");
 const ast = @import("ast.zig");
 const parser = @import("parser.zig");
+const executor = @import("executor.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -43,22 +44,26 @@ pub fn main(init: std.process.Init) !void {
             continue;
         };
 
-        try stdout.print("\n<><><><><> AST SUCCESS <><><><><>\n\n", .{});
-
-        // 4. Safely traverse and print the tree!
-        try printTree(stdout, tree, trimmed, 0);
-
-        try stdout.print("\n---------------------------------\n\n", .{});
-        try stdout.flush();
+        executor.execute(tree, trimmed, arena, stdout, io, init.environ_map) catch |err| {
+            std.log.err("Execution Engine Error: {}", .{err});
+        };
     }
 }
 
 fn print_banner(stdout: *std.Io.Writer) !void {
-    try stdout.print("\n", .{});
-    try stdout.print("<><><><><><><><><><>\n", .{});
-    try stdout.print(" Welcome to noshell\n", .{});
-    try stdout.print("<><><><><><><><><><>\n", .{});
-    try stdout.print("\n", .{});
+    const art =
+        \\  _____  ___      ______    ________  __    __    _______  ___      ___       
+        \\ (\"   \|"  \    /    " \  /"        )/" |  | "\  /"     "||"  |    |"  |      
+        \\ |.\\   \    |  // ____  \(:   \___/(:  (__)  :)(: ______)||  |    ||  |      
+        \\ |: \.   \\  | /  /    ) :)\___  \   \/      \/  \/    |  |:  |    |:  |      
+        \\ |.  \    \. |(: (____/ //  __/  \\  //  __  \\  // ___)_  \  |___  \  |___   
+        \\ |    \    \ | \        /  /" \   :)(:  (  )  :)(:      "|( \_|:  \( \_|:  \  
+        \\  \___|\____\)  \"_____/  (_______/  \__|  |__/  \_______) \_______)\_______) 
+        \\
+        \\
+    ;
+
+    try stdout.print("{s}", .{art});
 }
 
 fn print_prompt(io: std.Io, stdout: *std.Io.Writer, alloc: std.mem.Allocator, env: *std.process.Environ.Map) !void {
@@ -79,7 +84,7 @@ fn print_prompt(io: std.Io, stdout: *std.Io.Writer, alloc: std.mem.Allocator, en
         }
     }
 
-    try stdout.print("{s} ==<>\n", .{display_path});
+    try stdout.print("\n{s}\n", .{display_path});
 }
 
 fn printTree(stdout: anytype, node: *const ast.AstNode, src: []const u8, depth: usize) !void {
