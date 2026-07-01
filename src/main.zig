@@ -3,13 +3,13 @@ const lexer = @import("lexer.zig");
 const ast = @import("ast.zig");
 const parser = @import("parser.zig");
 const executor = @import("executor.zig");
+const editor = @import("editor.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     const stdout_file = std.Io.File.stdout();
-    var stdout_buf: [4096]u8 = undefined;
-    var stdout_impl = stdout_file.writer(io, &stdout_buf);
+    var stdout_impl = stdout_file.writer(io, &.{});
     const stdout = &stdout_impl.interface;
 
     const stdin_file = std.Io.File.stdin();
@@ -18,22 +18,29 @@ pub fn main(init: std.process.Init) !void {
     const stdin = &stdin_impl.interface;
 
     try print_banner(stdout);
-    try stdout.flush();
 
     while (true) {
         var alloc = std.heap.ArenaAllocator.init(init.gpa);
         defer alloc.deinit();
-
         const arena = alloc.allocator();
 
         try print_prompt(io, stdout, arena, init.environ_map);
-        try stdout.flush();
 
-        const mayble_line = stdin.takeDelimiter('\n') catch |err| {
+        var line_editor = editor.LineEditor.init(arena);
+
+        const maybe_line = line_editor.readLine(stdin, stdout) catch |err| {
+            if (err == error.Interrupt) {
+                continue;
+            }
             std.log.err("Read Error: {}", .{err});
             break;
         };
-        const line = mayble_line orelse break;
+
+        const line = maybe_line orelse {
+            try stdout.print("exit\n", .{});
+            break;
+        };
+
         const trimmed = std.mem.trim(u8, line, " \t\r");
         if (trimmed.len == 0) continue;
 
@@ -50,12 +57,12 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn print_banner(stdout: *std.Io.Writer) !void {
+fn print_banner(stdout: anytype) !void {
     const art =
-        \\  _____  ___      ______    ________  __    __    _______  ___      ___       
-        \\ (\"   \|"  \    /    " \  /"        )/" |  | "\  /"     "||"  |    |"  |      
+        \\  _____  ___    ______    ________  __    __    _______  ___      ___       
+        \\ ("   \|"  \   /    " \  /"        )/" |  | "\  /"     "||"  |    |"  |      
         \\ |.\\   \    |  // ____  \(:   \___/(:  (__)  :)(: ______)||  |    ||  |      
-        \\ |: \.   \\  | /  /    ) :)\___  \   \/      \/  \/    |  |:  |    |:  |      
+        \\ |: \.   \\  | /  /    ) :)\___  \    \/      \/  \/    |  |:  |    |:  |      
         \\ |.  \    \. |(: (____/ //  __/  \\  //  __  \\  // ___)_  \  |___  \  |___   
         \\ |    \    \ | \        /  /" \   :)(:  (  )  :)(:      "|( \_|:  \( \_|:  \  
         \\  \___|\____\)  \"_____/  (_______/  \__|  |__/  \_______) \_______)\_______) 
@@ -66,7 +73,7 @@ fn print_banner(stdout: *std.Io.Writer) !void {
     try stdout.print("{s}", .{art});
 }
 
-fn print_prompt(io: std.Io, stdout: *std.Io.Writer, alloc: std.mem.Allocator, env: *std.process.Environ.Map) !void {
+fn print_prompt(io: std.Io, stdout: anytype, alloc: std.mem.Allocator, env: anytype) !void {
     var cwd_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const cwd: []const u8 = if (std.process.currentPath(io, &cwd_buf)) |len|
         cwd_buf[0..len]
